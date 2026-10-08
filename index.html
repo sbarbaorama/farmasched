@@ -76,7 +76,11 @@ input,textarea{font:inherit;color:var(--ink)}
 .wk-nav{display:flex;align-items:center;gap:10px}
 .wk-label{display:grid;min-width:0}
 .wk-label strong{font-family:var(--f-display);font-size:19px;font-weight:700}
-.wk-actions{display:flex;gap:8px;flex-wrap:wrap}
+.wk-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.mode button{border:0;background:transparent;padding:8px 12px;cursor:pointer;font-weight:500;font-size:14px;color:var(--muted)}
+.mode button+button{border-left:1px solid var(--line)}
+.mode button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
 
 .summary{display:flex;flex-wrap:wrap;gap:8px}
 .chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer}
@@ -305,8 +309,8 @@ function errMsg(e){
 }
 
 /* ================= stato ================= */
-const S={view:"week",week:mondayOf(new Date()),filter:null,status:"loading",staff:null,rmConfirm:null,syncing:false,syncErr:null,lastSync:null,offlineData:false,discConfirm:false};
-{const v=ls.get("tf-view");if(["week","base","staff"].includes(v))S.view=v;const f=ls.get("tf-filter");if(f)S.filter=f}
+const S={view:"week",mode:"week",day:new Date(),week:mondayOf(new Date()),filter:null,status:"loading",staff:null,rmConfirm:null,syncing:false,syncErr:null,lastSync:null,offlineData:false,discConfirm:false};
+{const v=ls.get("tf-view");if(["week","base","staff"].includes(v))S.view=v;const f=ls.get("tf-filter");if(f)S.filter=f;if(ls.get("tf-mode")==="day")S.mode="day"}
 
 const cfg=()=>FILES["config.json"]&&FILES["config.json"].data;
 const emps=()=>(cfg()&&cfg().employees)||[];
@@ -437,24 +441,32 @@ function hoursChips(totals,filterable){
   return h;
 }
 function viewWeek(){
+  const dayMode=S.mode==="day";
   const days=[...Array(7)].map((_,i)=>ymd(addDays(S.week,i)));
   const effs=days.map(ds=>Object.assign({ds},effDay(ds)));
-  const range=timeRange(effs.map(e=>e.shifts));
+  const shown=dayMode?effs.filter(d=>d.ds===ymd(S.day)):effs;
+  const range=timeRange(shown.map(e=>e.shifts));
   const totals={};emps().forEach(e=>{totals[e.id]=0;effs.forEach(d=>{if(d.open)totals[e.id]+=mins(d.shifts[e.id])})});
   const nCustom=effs.filter(d=>d.custom).length;
-  const a=S.week,b=addDays(S.week,6);
-  const lbl=a.getMonth()===b.getMonth()?`${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()]} ${b.getFullYear()}`:`${a.getDate()} ${MON3[a.getMonth()]} – ${b.getDate()} ${MON3[b.getMonth()]} ${b.getFullYear()}`;
-  const today=ymd(new Date());
+  const a=S.week,b=addDays(S.week,6),dd=S.day;
+  const lbl=dayMode?`${DAYS[dd.getDay()]} ${dd.getDate()} ${MONTHS[dd.getMonth()]}`
+    :a.getMonth()===b.getMonth()?`${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()]} ${b.getFullYear()}`:`${a.getDate()} ${MON3[a.getMonth()]} – ${b.getDate()} ${MON3[b.getMonth()]} ${b.getFullYear()}`;
+  const today=ymd(new Date()),unit=dayMode?"Giorno":"Settimana";
+  const isNow=dayMode?ymd(dd)===today:ymd(a)===ymd(mondayOf(new Date()));
   return `<div class="toolbar">
-      <div class="wk-nav"><button class="icon-btn" data-act="prev" aria-label="Settimana precedente">‹</button>
-      <div class="wk-label"><span class="eyebrow">Settimana ${isoWeek(a)}</span><strong>${lbl}</strong></div>
-      <button class="icon-btn" data-act="next" aria-label="Settimana successiva">›</button></div>
-      <div class="wk-actions"><button class="btn" data-act="today">Oggi</button>${nCustom?`<button class="btn" data-act="reset-week">Ripristina orario base</button>`:""}</div>
+      <div class="wk-nav"><button class="icon-btn" data-act="prev" aria-label="${unit} precedente">‹</button>
+      <div class="wk-label"><span class="eyebrow">Settimana ${isoWeek(a)}${dayMode&&ymd(dd)===today?" · oggi":""}</span><strong>${lbl}</strong></div>
+      <button class="icon-btn" data-act="next" aria-label="${unit} successiv${dayMode?"o":"a"}">›</button></div>
+      <div class="wk-actions">
+        <div class="mode" role="group" aria-label="Cosa mostrare"><button data-act="mode" data-m="week" aria-pressed="${!dayMode}">Settimana</button><button data-act="mode" data-m="day" aria-pressed="${dayMode}">Solo oggi</button></div>
+        ${isNow?"":`<button class="btn" data-act="today">${dayMode?"Torna a oggi":"Questa settimana"}</button>`}
+        ${!dayMode&&nCustom?`<button class="btn" data-act="reset-week">Ripristina orario base</button>`:""}
+      </div>
     </div>
     <section class="summary" aria-label="Ore della settimana">${hoursChips(totals,true)}</section>
     <section class="days" style="--hours:${(range.hi-range.lo)/60}">
-      <p class="hint">Barre orarie dalle ${range.lo/60} alle ${range.hi/60}. Tocca un giorno per cambiare i turni.</p>
-      ${effs.map(d=>{const dt=parseYmd(d.ds);return dayCard(d,range,{kind:"day",key:d.ds,today:d.ds===today,title:`${DAYS[d.dow]} <small>${dt.getDate()} ${MON3[dt.getMonth()]}</small>`})}).join("")}
+      <p class="hint">${dayMode?"Le ore in alto sono il totale della settimana. ":""}Barre orarie dalle ${range.lo/60} alle ${range.hi/60}. Tocca ${dayMode?"il giorno":"un giorno"} per cambiare i turni.</p>
+      ${shown.map(d=>{const dt=parseYmd(d.ds);return dayCard(d,range,{kind:"day",key:d.ds,today:d.ds===today,title:`${DAYS[d.dow]} <small>${dt.getDate()} ${MON3[dt.getMonth()]}</small>`})}).join("")}
     </section>`;
 }
 function viewBase(){
@@ -586,8 +598,17 @@ $("#main").addEventListener("submit",async ev=>{
 
 $("#main").addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-act]");if(!t)return;const act=t.dataset.act;
-  if(act==="prev"||act==="next"){S.week=addDays(S.week,act==="prev"?-7:7);render();ensureWeekLoaded()}
-  else if(act==="today"){S.week=mondayOf(new Date());render();ensureWeekLoaded()}
+  if(act==="prev"||act==="next"){
+    const dir=act==="prev"?-1:1;
+    if(S.mode==="day"){S.day=addDays(S.day,dir);S.week=mondayOf(S.day)}else S.week=addDays(S.week,7*dir);
+    render();ensureWeekLoaded();
+  }
+  else if(act==="today"){S.day=new Date();S.week=mondayOf(S.day);render();ensureWeekLoaded()}
+  else if(act==="mode"){
+    S.mode=t.dataset.m;ls.set("tf-mode",S.mode);
+    if(S.mode==="day"){S.day=new Date();S.week=mondayOf(S.day)}
+    render();ensureWeekLoaded();
+  }
   else if(act==="sync")sync({toast:true});
   else if(act==="filter"){S.filter=t.dataset.id||null;ls.set("tf-filter",S.filter||"");render()}
   else if(act==="edit-day")openEditor("day",t.dataset.key);

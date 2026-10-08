@@ -2,7 +2,7 @@
 
 App per gestire i turni settimanali della farmacia, da telefono e da PC.
 
-- **Settimana**: turni giorno per giorno, con ore totali per persona confrontate con il contratto. Tocca un giorno per modificarlo (anche aprire la domenica o un festivo).
+- **Settimana** (o **Solo oggi**): turni giorno per giorno, con ore totali per persona confrontate con il contratto. Tocca un giorno per modificarlo (anche aprire la domenica o un festivo).
 - **Orario base**: lo schema che si ripete ogni settimana; le modifiche ai singoli giorni hanno la precedenza.
 - **Impostazioni**: personale, fasce rapide (Mattina 8:30–14:30, Pomeriggio 13:30–19:30…), collegamento ai dati.
 
