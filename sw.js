@@ -1,6 +1,6 @@
 // Rende l'app installabile e utilizzabile anche senza rete (in sola lettura dei dati già scaricati).
 // I dati su GitHub (api.github.com) non passano mai da qui.
-const CACHE = "farmasched-v1";
+const CACHE = "farmasched-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
